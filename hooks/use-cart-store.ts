@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-
 import { Cart, OrderItem } from '@/types'
 import { calcDeliveryDateAndPrice } from '@/lib/actions/order.actions'
 
@@ -17,6 +16,9 @@ const initialState: Cart = {
 interface CartState {
   cart: Cart
   addItem: (item: OrderItem, quantity: number) => Promise<string>
+  updateItem: (item: OrderItem, quantity: number) => void
+  removeItem: (item: OrderItem) => void
+  init: () => void
 }
 
 const useCartStore = create(
@@ -62,7 +64,7 @@ const useCartStore = create(
             })),
           },
         })
-        // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+
         return updatedCartItems.find(
           (x) =>
             x.product === item.product &&
@@ -70,6 +72,48 @@ const useCartStore = create(
             x.size === item.size
         )?.clientId!
       },
+
+      // ✅ Added updateItem function
+      updateItem: (item: OrderItem, quantity: number) => {
+        set((state) => {
+          const updatedItems = state.cart.items.map((cartItem) =>
+            cartItem.clientId === item.clientId
+              ? { ...cartItem, quantity }
+              : cartItem
+          )
+
+          return {
+            cart: {
+              ...state.cart,
+              items: updatedItems,
+              itemsPrice: updatedItems.reduce(
+                (sum, i) => sum + i.price * i.quantity,
+                0
+              ),
+            },
+          }
+        })
+      },
+
+      removeItem: (item: OrderItem) => {
+        set((state) => {
+          const updatedItems = state.cart.items.filter(
+            (cartItem) => cartItem.clientId !== item.clientId
+          )
+
+          return {
+            cart: {
+              ...state.cart,
+              items: updatedItems,
+              itemsPrice: updatedItems.reduce(
+                (sum, i) => sum + i.price * i.quantity,
+                0
+              ),
+            },
+          }
+        })
+      },
+
       init: () => set({ cart: initialState }),
     }),
     {
@@ -77,4 +121,5 @@ const useCartStore = create(
     }
   )
 )
+
 export default useCartStore
