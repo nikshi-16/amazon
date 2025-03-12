@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
 import { Cart, OrderItem } from '@/types'
 import { calcDeliveryDateAndPrice } from '@/lib/actions/order.actions'
 
@@ -16,9 +17,8 @@ const initialState: Cart = {
 interface CartState {
   cart: Cart
   addItem: (item: OrderItem, quantity: number) => Promise<string>
-  updateItem: (item: OrderItem, quantity: number) => void
+  updateItem:(item:OrderItem,quantity:number)=>Promise<void>
   removeItem: (item: OrderItem) => void
-  init: () => void
 }
 
 const useCartStore = create(
@@ -64,7 +64,7 @@ const useCartStore = create(
             })),
           },
         })
-
+        // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
         return updatedCartItems.find(
           (x) =>
             x.product === item.product &&
@@ -72,45 +72,48 @@ const useCartStore = create(
             x.size === item.size
         )?.clientId!
       },
-
-      // ✅ Added updateItem function
-      updateItem: (item: OrderItem, quantity: number) => {
-        set((state) => {
-          const updatedItems = state.cart.items.map((cartItem) =>
-            cartItem.clientId === item.clientId
-              ? { ...cartItem, quantity }
-              : cartItem
-          )
-
-          return {
-            cart: {
-              ...state.cart,
-              items: updatedItems,
-              itemsPrice: updatedItems.reduce(
-                (sum, i) => sum + i.price * i.quantity,
-                0
-              ),
-            },
-          }
+      updateItem: async (item: OrderItem, quantity: number) => {
+        const { items } = get().cart
+        const exist = items.find(
+          (x) =>
+            x.product === item.product &&
+            x.color === item.color &&
+            x.size === item.size
+        )
+        if (!exist) return
+        const updatedCartItems = items.map((x) =>
+          x.product === item.product &&
+          x.color === item.color &&
+          x.size === item.size
+            ? { ...exist, quantity: quantity }
+            : x
+        )
+        set({
+          cart: {
+            ...get().cart,
+            items: updatedCartItems,
+            ...(await calcDeliveryDateAndPrice({
+              items: updatedCartItems,
+            })),
+          },
         })
       },
-
-      removeItem: (item: OrderItem) => {
-        set((state) => {
-          const updatedItems = state.cart.items.filter(
-            (cartItem) => cartItem.clientId !== item.clientId
-          )
-
-          return {
-            cart: {
-              ...state.cart,
-              items: updatedItems,
-              itemsPrice: updatedItems.reduce(
-                (sum, i) => sum + i.price * i.quantity,
-                0
-              ),
-            },
-          }
+      removeItem: async (item: OrderItem) => {
+        const { items } = get().cart
+        const updatedCartItems = items.filter(
+          (x) =>
+            x.product !== item.product ||
+            x.color !== item.color ||
+            x.size !== item.size
+        )
+        set({
+          cart: {
+            ...get().cart,
+            items: updatedCartItems,
+            ...(await calcDeliveryDateAndPrice({
+              items: updatedCartItems,
+            })),
+          },
         })
       },
 
@@ -121,5 +124,4 @@ const useCartStore = create(
     }
   )
 )
-
 export default useCartStore
