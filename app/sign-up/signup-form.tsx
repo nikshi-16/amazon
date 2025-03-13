@@ -21,7 +21,7 @@ import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { APP_NAME } from '@/lib/constants';
 
 import { Toaster, toast } from 'sonner';
-import { UserSignIUpSchema } from '@/lib/validator';
+import { UserSignUpSchema } from '@/lib/validator';
 
 const signUpDefaultValues =
   process.env.NODE_ENV === 'development'
@@ -42,7 +42,7 @@ export default function SignUpForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
   const form = useForm<IUserSignUp>({
-    resolver: zodResolver(UserSignIUpSchema),
+    resolver: zodResolver(UserSignUpSchema),
     defaultValues: signUpDefaultValues,
   });
   const { control, handleSubmit } = form;

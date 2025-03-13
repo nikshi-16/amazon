@@ -1,8 +1,13 @@
 'use client'
+import { Button } from '@/components/ui/button';
 import { useFormStatus } from 'react-dom'
 
-import { Button } from '@/components/ui/button'
-import { SignInWithGoogle } from '@/lib/actions/user.actions'
+
+
+const SignInWithGoogle = () => {
+  // Placeholder function for Google Sign-In logic
+  console.log("Signing in with Google...");
+};
 
 export function GoogleSignInForm() {
   const SignInButton = () => {
