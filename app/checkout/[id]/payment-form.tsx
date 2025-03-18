@@ -1,25 +1,30 @@
 'use client'
 import { toast } from 'sonner'
-import { PayPalButtons, PayPalScriptProvider, usePayPalScriptReducer } from '@paypal/react-paypal-js'
 
+import { PayPalButtons, PayPalScriptProvider, usePayPalScriptReducer } from '@paypal/react-paypal-js'
+import { Card, CardContent } from '@/components/ui/card'
+import { approvePayPalOrder, createPayPalOrder } from '@/lib/actions/order.actions'
+import { IOrder } from '@/lib/db/models/order.model'
+import { formatDateTime } from '@/lib/utils'
 import CheckoutFooter from '../checkout-footer'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Button } from '@react-email/components'
+import { Button } from '@/components/ui/button'
 import ProductPrice from '@/components/shared/product/product-price'
-import { Card, CardContent } from '@/components/ui/card'
-import { createPayPalOrder, approvePayPalOrder } from '@/lib/actions/order.actions'
-import { IOrder } from '@/lib/db/models/order.model'
-import { formatDateTime } from '@/lib/utils'
+import { loadStripe } from '@stripe/stripe-js'
+import { Elements } from '@stripe/react-stripe-js'
+import StripeForm from './stripe-form'
 
-
-interface OrderPaymentFormProps {
-  order: IOrder
-  paypalClientId: string
-  isAdmin: boolean
-}
-
-export default function OrderPaymentForm({ order, paypalClientId }: OrderPaymentFormProps) {
+export default function OrderPaymentForm({
+  order,
+  paypalClientId,
+  clientSecret,
+}:{
+order: IOrder
+paypalClientId:string
+isAdmin:boolean
+clientSecret: string | null
+}){
   const router = useRouter()
   const {
     shippingAddress,
@@ -41,9 +46,13 @@ export default function OrderPaymentForm({ order, paypalClientId }: OrderPayment
 
   function PrintLoadingState() {
     const [{ isPending, isRejected }] = usePayPalScriptReducer()
-    if (isPending) return <p>Loading PayPal...</p>
-    if (isRejected) return <p className="text-red-500">Error loading PayPal.</p>
-    return null
+    let status = ''
+    if (isPending) {
+      status = 'Loading PayPal...'
+    } else if (isRejected) {
+      status = 'Error in loading PayPal.'
+    }
+    return status
   }
 
   const handleCreatePayPalOrder = async () => {
@@ -120,7 +129,19 @@ export default function OrderPaymentForm({ order, paypalClientId }: OrderPayment
                 </PayPalScriptProvider>
               </div>
             )}
-
+             {!isPaid && paymentMethod === 'Stripe' && clientSecret && (
+              <Elements
+                options={{
+                  clientSecret,
+                }}
+                stripe={stripePromise}
+              >
+                <StripeForm
+                  priceInCents={Math.round(order.totalPrice * 100)}
+                  orderId={order._id}
+                />
+              </Elements>
+            )}
             {!isPaid && paymentMethod === 'Cash On Delivery' && (
               <Button className="w-full rounded-full" onClick={() => router.push(`/account/orders/${order._id}`)}>
                 View Order
@@ -131,6 +152,10 @@ export default function OrderPaymentForm({ order, paypalClientId }: OrderPayment
       </CardContent>
     </Card>
   )
+   const stripePromise = loadStripe(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY as string
+   )
+
 
   return (
     <main className="max-w-6xl mx-auto">
@@ -170,7 +195,7 @@ export default function OrderPaymentForm({ order, paypalClientId }: OrderPayment
             <div className="col-span-2">
               <p>Delivery date: {formatDateTime(expectedDeliveryDate).dateOnly}</p>
               <ul>
-                {items.map((item: { slug: string; name: string; quantity: number; price: number }) => (
+                {items.map((item) => (
                   <li key={item.slug}>
                     {item.name} x {item.quantity} = {item.price}
                   </li>
